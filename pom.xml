@@ -11,7 +11,7 @@
     <packaging>jar</packaging>
 
     <name>democyber</name>
-    <description>Mini Spring Boot Hello App</description>
+    <description>Mini Spring Boot Hello App  j</description>
 
     <parent>
         <groupId>org.springframework.boot</groupId>
