@@ -16,6 +16,9 @@ jobs:
       # Checkout the code
       - name: Checkout repository
         uses: actions/checkout@v4
+         # Gitleaks scan (before compilation)
+      - name: Run Gitleaks scan
+        uses: zricethezav/gitleaks-action@v2
 
       # Install Java
       - name: Set up JDK 21
