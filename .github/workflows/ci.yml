@@ -15,17 +15,26 @@ jobs:
       DOCKER_IMAGE_NAME: ${{ secrets.DOCKERHUB_USERNAME }}/democyber:latest
 
     steps:
-      # Checkout the code
+      # 1. Récupérer le code
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      # Gitleaks scan (before compilation)
+      # 2. Scanner les secrets
       - name: Run Gitleaks scan
         uses: zricethezav/gitleaks-action@v2
 
-      # Install Java
+      # 3. Télécharger le rapport Gitleaks
+      - name: Upload Gitleaks report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: gitleaks-report
+          path: results.sarif
+          if-no-files-found: warn
+
+      # 4. Installer Java 21
       - name: Set up JDK 21
         uses: actions/setup-java@v4
         with:
@@ -33,21 +42,34 @@ jobs:
           distribution: temurin
           cache: maven
 
-      # Build Maven (compile + package)
+      # 5. Compiler et tester le projet
       - name: Build Java project with Maven
         run: mvn clean package
 
-      # Verify Docker image name
+      # 6. Construire l'image Docker
+      - name: Build Docker image
+        run: docker build -t democyber:latest .
+
+      # 7. Tester l'image Docker localement
+      - name: Test Docker image locally
+        run: |
+          set -e
+          docker run -d --name democyber-test -p 8080:8080 democyber:latest
+          trap 'docker rm -f democyber-test >/dev/null 2>&1 || true' EXIT
+          sleep 10
+          curl --retry 5 --retry-delay 2 --retry-connrefused -f http://localhost:8080/
+
+      # 8. Vérifier le nom de l'image Docker Hub
       - name: Verify Docker image name
         if: github.event_name == 'push'
         run: |
-          if [ -z "$DOCKER_IMAGE_NAME" ]; then
-            echo "DOCKER_IMAGE_NAME is empty"
+          if [ -z "$DOCKER_IMAGE_NAME" ] || [[ "$DOCKER_IMAGE_NAME" == "/democyber:latest" ]]; then
+            echo "Docker Hub image name is not configured"
             exit 1
           fi
           echo "Docker image name is configured."
 
-      # Login Docker Hub (push events only)
+      # 9. Connexion à Docker Hub
       - name: Login to Docker Hub
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -55,17 +77,12 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # Build Docker image
-      - name: Build Docker image
-        run: docker build -t "$DOCKER_IMAGE_NAME" .
+      # 10. Taguer l'image pour Docker Hub
+      - name: Tag Docker image for Docker Hub
+        if: github.event_name == 'push'
+        run: docker tag democyber:latest "$DOCKER_IMAGE_NAME"
 
-      # Push Docker image
+      # 11. Publier l'image sur Docker Hub
       - name: Push Docker image
         if: github.event_name == 'push'
         run: docker push "$DOCKER_IMAGE_NAME"
-       # Upload the Gitleaks report
-      - name: Upload Gitleaks report
-        uses: actions/upload-artifact@v4
-        with:
-         name: gitleaks-report
-         path: results.sarif
