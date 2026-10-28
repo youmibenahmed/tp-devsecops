@@ -61,7 +61,7 @@ jobs:
 
       # 8. Scanner l'image avec Trivy
       - name: Scan Docker image with Trivy
-        uses: aquasecurity/trivy-action@0.20.0
+        uses: aquasecurity/trivy-action@v0.20.0
         with:
           image-ref: democyber:latest
           format: table
