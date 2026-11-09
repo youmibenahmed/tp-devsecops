@@ -1,4 +1,5 @@
 
+
 name: CI/CD - democyber
 
 on:
@@ -46,11 +47,22 @@ jobs:
       - name: Build Java project with Maven
         run: mvn clean package
 
-      # 6. Construire l'image Docker
+      # 6. Analyser le code avec SonarCloud
+      - name: SonarCloud Scan
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: >
+          mvn -B org.sonarsource.scanner.maven:sonar-maven-plugin:sonar
+          -Dsonar.host.url=https://sonarcloud.io
+          -Dsonar.organization=${{ secrets.SONAR_ORGANIZATION }}
+          -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+
+      # 7. Construire l'image Docker
       - name: Build Docker image
         run: docker build -t democyber:latest .
 
-      # 7. Tester l'image localement
+      # 8. Tester l'image localement
       - name: Test Docker image locally
         run: |
           set -e
@@ -59,7 +71,7 @@ jobs:
           sleep 10
           curl --retry 5 --retry-delay 2 --retry-connrefused -f http://localhost:8080/
 
-      # 8. Scanner l'image avec Trivy
+      # 9. Scanner l'image avec Trivy
       - name: Scan Docker image with Trivy
         uses: aquasecurity/trivy-action@v0.20.0
         with:
@@ -67,9 +79,8 @@ jobs:
           format: table
           exit-code: '1'
           severity: 'CRITICAL,HIGH'
-          
 
-      # 9. Générer le rapport Trivy au format SARIF
+      # 10. Générer le rapport Trivy au format SARIF
       - name: Generate Trivy SARIF report
         if: always()
         uses: aquasecurity/trivy-action@v0.20.0
@@ -81,7 +92,7 @@ jobs:
           severity: 'CRITICAL,HIGH'
           ignore-unfixed: true
 
-      # 10. Télécharger le rapport Trivy
+      # 11. Télécharger le rapport Trivy
       - name: Upload Trivy report
         if: always()
         uses: actions/upload-artifact@v4
@@ -90,7 +101,7 @@ jobs:
           path: trivy-results.sarif
           if-no-files-found: warn
 
-      # 11. Vérifier le nom de l'image Docker Hub
+      # 12. Vérifier le nom de l'image Docker Hub
       - name: Verify Docker image name
         if: github.event_name == 'push'
         run: |
@@ -100,7 +111,7 @@ jobs:
           fi
           echo "Docker image name is configured."
 
-      # 12. Se connecter à Docker Hub
+      # 13. Se connecter à Docker Hub
       - name: Login to Docker Hub
         if: github.event_name == 'push'
         uses: docker/login-action@v3
@@ -108,12 +119,14 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      # 13. Préparer le tag Docker Hub
+      # 14. Préparer le tag Docker Hub
       - name: Tag Docker image for Docker Hub
         if: github.event_name == 'push'
         run: docker tag democyber:latest "$DOCKER_IMAGE_NAME"
 
-      # 14. Publier l'image
+      # 15. Publier l'image
       - name: Push Docker image
         if: github.event_name == 'push'
         run: docker push "$DOCKER_IMAGE_NAME"
+
+        
