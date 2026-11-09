@@ -1,5 +1,3 @@
-
-
 name: CI/CD - democyber
 
 on:
@@ -60,8 +58,7 @@ jobs:
 
       # 7. Construire l'image Docker
       - name: Build Docker image
-        run: docker build -t democyber:latest .
-
+        run: docker build --pull --no-cache -t democyber:latest .
       # 8. Tester l'image localement
       - name: Test Docker image locally
         run: |
@@ -128,5 +125,3 @@ jobs:
       - name: Push Docker image
         if: github.event_name == 'push'
         run: docker push "$DOCKER_IMAGE_NAME"
-
-        
